@@ -1,60 +1,96 @@
-import './style.css'
-import heroImg from './assets/hero.png'
-import javascriptLogo from './assets/javascript.svg'
-import viteLogo from './assets/vite.svg'
-import { setupCounter } from './counter.js'
+const canvas = document.getElementById('canvas');
+const ctx = canvas.getContext('2d');
 
-document.querySelector('#app').innerHTML = `
-<section id="center">
-  <div class="hero">
-    <img src="${heroImg}" class="base" width="170" height="179">
-    <img src="${javascriptLogo}" class="framework" alt="JavaScript logo"/>
-    <img src="${viteLogo}" class="vite" alt="Vite logo" />
-  </div>
-  <div>
-    <h1>Get started</h1>
-    <p>Edit <code>src/main.js</code> and save to test <code>HMR</code></p>
-  </div>
-  <button id="counter" type="button" class="counter"></button>
-</section>
+function resizeCanvas() {
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+}
+resizeCanvas();
+window.addEventListener('resize', resizeCanvas);
 
-<div class="ticks"></div>
+// Configuración del ramo
+const NUM_FLOWERS = 7;
+const flowers = [];
 
-<section id="next-steps">
-  <div id="docs">
-    <svg class="icon" role="presentation" aria-hidden="true"><use href="/icons.svg#documentation-icon"></use></svg>
-    <h2>Documentation</h2>
-    <p>Your questions, answered</p>
-    <ul>
-      <li>
-        <a href="https://vite.dev/" target="_blank">
-          <img class="logo" src="${viteLogo}" alt="" />
-          Explore Vite
-        </a>
-      </li>
-      <li>
-        <a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript" target="_blank">
-          <img class="button-icon" src="${javascriptLogo}" alt="">
-          Learn more
-        </a>
-      </li>
-    </ul>
-  </div>
-  <div id="social">
-    <svg class="icon" role="presentation" aria-hidden="true"><use href="/icons.svg#social-icon"></use></svg>
-    <h2>Connect with us</h2>
-    <p>Join the Vite community</p>
-    <ul>
-      <li><a href="https://github.com/vitejs/vite" target="_blank"><svg class="button-icon" role="presentation" aria-hidden="true"><use href="/icons.svg#github-icon"></use></svg>GitHub</a></li>
-      <li><a href="https://chat.vite.dev/" target="_blank"><svg class="button-icon" role="presentation" aria-hidden="true"><use href="/icons.svg#discord-icon"></use></svg>Discord</a></li>
-      <li><a href="https://x.com/vite_js" target="_blank"><svg class="button-icon" role="presentation" aria-hidden="true"><use href="/icons.svg#x-icon"></use></svg>X.com</a></li>
-      <li><a href="https://bsky.app/profile/vite.dev" target="_blank"><svg class="button-icon" role="presentation" aria-hidden="true"><use href="/icons.svg#bluesky-icon"></use></svg>Bluesky</a></li>
-    </ul>
-  </div>
-</section>
+// Crear las características de cada flor
+for (let i = 0; i < NUM_FLOWERS; i++) {
+    // Distribuir las flores en forma de abanico
+    const offset = (i - Math.floor(NUM_FLOWERS / 2)) * 80;
 
-<div class="ticks"></div>
-<section id="spacer"></section>
-`
+    flowers.push({
+        // El tallo nace del centro inferior
+        startX: canvas.width / 2,
+        startY: canvas.height + 50,
 
-setupCounter(document.querySelector('#counter'))
+        // Punto de control para curvar el tallo
+        controlX: canvas.width / 2 + offset * 0.5,
+        controlY: canvas.height * 0.7,
+
+        // El centro de la flor (formando un arco: las de en medio son más altas)
+        endX: canvas.width / 2 + offset,
+        endY: canvas.height / 2 + Math.abs(offset) * 0.6 - 150,
+
+        // Matemáticas de la flor
+        k: Math.floor(Math.random() * 3) + 4, // Entre 4 y 6 pétalos (x2 si es par)
+        a: Math.random() * 30 + 40, // Tamaño de la flor
+
+        // Tonos amarillos/dorados (HSL: 45 es oro, 60 es amarillo limón)
+        hue: 45 + Math.random() * 15,
+
+        // Progreso del dibujo
+        angle: 0,
+        speed: 0.015 + Math.random() * 0.01
+    });
+}
+
+function drawBouquet() {
+    // Limpiamos el lienzo por completo en cada fotograma
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    flowers.forEach(f => {
+        // 1. DIBUJAR EL TALLO (Verde)
+        ctx.beginPath();
+        ctx.moveTo(f.startX, f.startY);
+        ctx.quadraticCurveTo(f.controlX, f.controlY, f.endX, f.endY);
+        ctx.strokeStyle = '#228B22'; // Verde bosque
+        ctx.lineWidth = 4;
+        ctx.shadowBlur = 0; // Sin brillo para el tallo
+        ctx.stroke();
+
+        // 2. DIBUJAR LA FLOR (Amarilla)
+        ctx.beginPath();
+        // Trazamos la curva desde 0 hasta el ángulo actual de crecimiento
+        for (let t = 0; t <= f.angle; t += 0.05) {
+            const r = f.a * Math.cos(f.k * t);
+            const px = f.endX + r * Math.cos(t);
+            const py = f.endY + r * Math.sin(t);
+
+            if (t === 0) ctx.moveTo(px, py);
+            else ctx.lineTo(px, py);
+        }
+
+        // Estilos de neón/brillo amarillo
+        ctx.strokeStyle = `hsl(${f.hue}, 100%, 50%)`;
+        ctx.lineWidth = 3;
+        ctx.shadowBlur = 15;
+        ctx.shadowColor = ctx.strokeStyle;
+        ctx.stroke();
+
+        // Dibujar un centro brillante (el "polen")
+        ctx.beginPath();
+        ctx.arc(f.endX, f.endY, 8, 0, Math.PI * 2);
+        ctx.fillStyle = '#FFA500'; // Naranja
+        ctx.fill();
+
+        // 3. CRECER LA FLOR
+        // Math.PI * 2 es un círculo completo. Detenemos el crecimiento al completarla.
+        if (f.angle < Math.PI * 2) {
+            f.angle += f.speed;
+        }
+    });
+
+    requestAnimationFrame(drawBouquet);
+}
+
+// Iniciar la animación
+drawBouquet();
